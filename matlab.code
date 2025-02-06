@@ -1,0 +1,82 @@
+% MATLAB Ultrasonic Radar Visualization
+
+
+% Set up the serial port
+serialPort = "COM8"; % Change this to your Arduino's COM port
+baudRate = 9600;
+
+% Create the serial object
+arduino = serialport(serialPort, baudRate);
+configureTerminator(arduino, "LF"); % Set line feed as the terminator
+flush(arduino); % Clear any previous data
+
+% Initialize radar figure
+figure('Name', 'Ultrasonic Radar', 'NumberTitle', 'off', 'Color', 'k', ...
+       'Position', [100, 100, 800, 800]);
+hold on;
+axis equal;
+set(gca, 'Color', 'k', 'XColor', 'none', 'YColor', 'none');
+
+% Radar grid settings
+maxRange = 40; % Maximum range in cm
+theta = linspace(0, pi, 180); % 180-degree sweep
+radii = linspace(0, maxRange, 5); % 5 concentric circles
+for r = radii
+    plot(r * cos(theta), r * sin(theta), 'g'); % Draw circles
+end
+
+% Angle gridlines
+for angle = 0:30:180
+    plot([0, maxRange * cosd(angle)], [0, maxRange * sind(angle)], 'g');
+end
+
+% Radar sweeping line
+sweepLine = plot([0, 0], [0, maxRange], 'g', 'LineWidth', 2);
+
+% Object detection marker
+objectMarker = plot(0, 0, 'ro', 'MarkerSize', 8, 'MarkerFaceColor', 'r');
+
+% Text annotations
+angleText = text(-maxRange * 0.9, -maxRange * 0.9, '', ...
+    'Color', 'g', 'FontSize', 14, 'HorizontalAlignment', 'left');
+
+disp('Radar Visualization Started. Press Ctrl+C to stop.');
+
+% Main loop for data acquisition and visualization
+while true
+    if arduino.NumBytesAvailable > 0
+        % Read data from the Arduino
+        data = readline(arduino);
+        disp("Raw Data: " + data); % Display raw data for debugging
+        
+        % Parse the data
+        parsedData = sscanf(data, '%d,%d.');
+        if length(parsedData) == 2
+            angle = parsedData(1);      % Angle in degrees
+            distance = parsedData(2);   % Distance in cm
+
+            % Ensure distance is within range
+            distance = min(distance, maxRange);
+
+            % Calculate coordinates for the object
+            x = distance * cosd(angle);
+            y = distance * sind(angle);
+
+            % Update sweeping line
+            set(sweepLine, 'XData', [0, maxRange * cosd(angle)], ...
+                           'YData', [0, maxRange * sind(angle)]);
+
+            % Update object marker
+            if distance <= maxRange
+                set(objectMarker, 'XData', x, 'YData', y);
+            else
+                set(objectMarker, 'XData', NaN, 'YData', NaN);
+            end
+
+            % Update angle text
+            set(angleText, 'String', sprintf('Angle: %d° | Distance: %d cm', angle, distance));
+
+            drawnow; % Refresh the plot
+        end
+    end
+end
