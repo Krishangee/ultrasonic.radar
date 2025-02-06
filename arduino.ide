@@ -1,0 +1,56 @@
+#include <Servo.h>
+
+// Pin Definitions
+const int trigPin = 10;  // Trigger Pin of Ultrasonic Sensor
+const int echoPin = 9;   // Echo Pin of Ultrasonic Sensor
+Servo myServo;           // Servo motor object
+
+// Variables
+long duration;
+int distance;
+
+void setup() {
+  Serial.begin(9600);    // Initialize Serial Communication
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  myServo.attach(3);     // Attach Servo Motor to Pin 3
+}
+
+void loop() {
+  // Sweep from 15° to 165°
+  for (int angle = 15; angle <= 165; angle++) {
+    myServo.write(angle);           // Move servo to current angle
+    delay(30);                      // Small delay for servo to stabilize
+    distance = getDistance();       // Get distance using Ultrasonic Sensor
+    sendData(angle, distance);      // Send angle and distance over Serial
+  }
+
+  // Sweep back from 165° to 15°
+  for (int angle = 165; angle >= 15; angle--) {
+    myServo.write(angle);
+    delay(30);
+    distance = getDistance();
+    sendData(angle, distance);
+  }
+}
+
+// Function to Measure Distance
+int getDistance() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duration = pulseIn(echoPin, HIGH);   // Measure time of echo
+  int dist = duration * 0.034 / 2;     // Convert to cm
+  return dist > 40 ? 40 : dist;        // Cap distance to 40 cm
+}
+
+// Function to Send Data to Serial
+void sendData(int angle, int distance) {
+  Serial.print(angle);
+  Serial.print(",");
+  Serial.print(distance);
+  Serial.println(".");    // End of data packet
+}
